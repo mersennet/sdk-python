@@ -22,7 +22,7 @@ class MersennetOrders:
         self, base: str, quote: str, lot: str, tick: str
     ) -> int:
         """Add a new market (admin). Returns market ID."""
-        result = self.provider._request("mersennetorders_addMarket", [
+        result = self.provider._request("mersennet_orders_addMarket", [
             f"{base}-{quote}",
             _to_hex_amount(tick),
             _to_hex_amount(lot),
@@ -49,18 +49,18 @@ class MersennetOrders:
             "size": _to_hex_amount(amount),
             "tif": tif,
         }]
-        return self.provider._request("mersennetorders_submitOrder", params)
+        return self.provider._request("mersennet_orders_submitOrder", params)
 
     def cancel_order(self, order_id: int) -> bool:
         """Cancel an order by ID."""
-        result = self.provider._request("mersennetorders_cancelOrder", [
+        result = self.provider._request("mersennet_orders_cancelOrder", [
             hex(order_id),
         ])
         return bool(result)
 
     def get_order_book(self, market: int) -> OrderBook:
         """Get order book for a market."""
-        result = self.provider._request("mersennetorders_getOrderBook", [
+        result = self.provider._request("mersennet_orders_getOrderBook", [
             hex(market),
         ])
         if result is None:
@@ -78,7 +78,7 @@ class MersennetOrders:
     def get_trades(self, market: int) -> List[Trade]:
         """Get recent trades for a market (via domain events or RPC if available)."""
         result = self.provider._request("mersennet_getDomainEvents", [{
-            "domain": "mersennetorders",
+            "domain": "mersennet_orders",
             "kind": "trade",
         }])
         if not result or not isinstance(result, list):
