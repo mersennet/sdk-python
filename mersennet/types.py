@@ -1,21 +1,22 @@
 """Type definitions for Mersennet SDK."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional
 
 
 @dataclass
-class Block:
-    """Block data from eth_getBlockByNumber / eth_getBlockByHash."""
+class Log:
+    """Event log entry from a receipt or eth_getLogs."""
 
-    number: str
-    hash: str
-    gas_limit: str
-    gas_used: str
-    base_fee: str
-    state_root: str
-    transactions: List
-    domain_events: Optional[List] = None
+    address: str
+    topics: List[str]
+    data: str
+    block_number: str
+    block_hash: str
+    transaction_hash: str
+    transaction_index: str
+    log_index: str
+    removed: bool = False
 
 
 @dataclass
@@ -30,6 +31,14 @@ class Transaction:
     gas: str
     gas_price: str
     input: str
+    block_hash: Optional[str] = None
+    block_number: Optional[str] = None
+    transaction_index: Optional[str] = None
+    type: Optional[str] = None
+    v: Optional[str] = None
+    r: Optional[str] = None
+    s: Optional[str] = None
+    chain_id: Optional[str] = None
 
 
 @dataclass
@@ -40,11 +49,45 @@ class Receipt:
     block_hash: str
     block_number: str
     transaction_index: str
+    from_: str
+    to: Optional[str]
     gas_used: str
+    cumulative_gas_used: str
+    effective_gas_price: str
     status: str
     contract_address: Optional[str]
-    output: str
-    logs: List
+    logs_bloom: str
+    type: Optional[str]
+    logs: List[Log] = field(default_factory=list)
+
+
+@dataclass
+class Block:
+    """Block data from eth_getBlockByNumber / eth_getBlockByHash."""
+
+    number: str
+    hash: str
+    parent_hash: str
+    nonce: str
+    sha3_uncles: str
+    logs_bloom: str
+    transactions_root: str
+    state_root: str
+    receipts_root: str
+    miner: str
+    proposer: str
+    difficulty: str
+    total_difficulty: str
+    extra_data: str
+    size: str
+    gas_limit: str
+    gas_used: str
+    base_fee: str
+    timestamp: str
+    transactions: List = field(default_factory=list)
+    uncles: List = field(default_factory=list)
+    mix_hash: str = "0x0"
+    domain_events: Optional[List] = None
 
 
 @dataclass
