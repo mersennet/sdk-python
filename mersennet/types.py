@@ -152,3 +152,63 @@ class ViewNotesResult:
     next_cursor: Optional[str]
     notes: List[ViewNotesEntry]
     signature_verified: bool
+
+
+@dataclass
+class ViewBalancesResult:
+    """Grant-gated (``balances:read``) balance-reconstruction page returned by
+    mersennet_viewBalances. Pair with ``reconstruct_portfolio``."""
+
+    grant_id: str
+    grantor_commitment: str
+    block_number: int
+    shielded_state_root: str
+    total_encrypted_note_count: int
+    returned_encrypted_note_count: int
+    next_cursor: Optional[str]
+    notes: List[ViewNotesEntry]
+    spent_nullifiers: List[str]
+    spent_nullifier_count: int
+    reconstruction: str
+    signature_verified: bool
+
+
+@dataclass
+class ViewMarketAggregate:
+    """Public per-market aggregate returned in trading view reads."""
+
+    market_id: int
+    mark_price: str = "0x0"
+    long_open_interest: str = "0x0"
+    short_open_interest: str = "0x0"
+    last_clearing_price: str = "0x0"
+    last_volume: str = "0x0"
+    liquidatable_count: int = 0
+
+
+@dataclass
+class ViewTradingResult:
+    """Grant-gated (``orders:read`` / ``positions:read``) read. Returns the
+    public market context + grant binding only - order/position rows are
+    reconstructed client-side."""
+
+    grant_id: str
+    grantor_commitment: str
+    block_number: int
+    shielded_state_root: str
+    market_aggregates: List[ViewMarketAggregate]
+    reconstruction: str
+    signature_verified: bool
+
+
+@dataclass
+class ViewGrantStatus:
+    """Status of a viewing grant (mersennet_viewGrantStatus)."""
+
+    exists: bool
+    status: str
+    active_now: bool
+    signature_verified: bool
+    revoked: bool
+    revoked_at_block: Optional[int] = None
+    grant_token: Optional[dict] = None

@@ -14,8 +14,12 @@ from .types import (
     Log,
     Receipt,
     Transaction,
+    ViewBalancesResult,
+    ViewGrantStatus,
+    ViewMarketAggregate,
     ViewNotesEntry,
     ViewNotesResult,
+    ViewTradingResult,
 )
 
 
@@ -260,6 +264,104 @@ class MersennetProvider:
             notes=notes,
             signature_verified=result.get("signatureVerified", False),
         )
+
+    def view_balances(
+        self,
+        grant_id_hex: str,
+        limit: Optional[int] = None,
+        cursor_hex: Optional[str] = None,
+    ) -> ViewBalancesResult:
+        """mersennet_viewBalances - grant-gated (``balances:read``) page.
+
+        Returns the encrypted-note page plus the spent-nullifier set; pair with
+        ``reconstruct_portfolio`` to derive spendable balances client-side.
+        """
+        request: Dict[str, Any] = {"grantIdHex": grant_id_hex}
+        if limit is not None:
+            request["limit"] = limit
+        if cursor_hex is not None:
+            request["cursorHex"] = cursor_hex
+        result = self._request("mersennet_viewBalances", [request])
+        notes = [
+            ViewNotesEntry(
+                note_commitment=entry.get("noteCommitment", "0x"),
+                encrypted_note=entry.get("encryptedNote", "0x"),
+            )
+            for entry in result.get("notes", [])
+        ]
+        return ViewBalancesResult(
+            grant_id=result.get("grantId", "0x"),
+            grantor_commitment=result.get("grantorCommitment", "0x"),
+            block_number=result.get("blockNumber", 0),
+            shielded_state_root=result.get("shieldedStateRoot", "0x"),
+            total_encrypted_note_count=result.get("totalEncryptedNoteCount", 0),
+            returned_encrypted_note_count=result.get("returnedEncryptedNoteCount", 0),
+            next_cursor=result.get("nextCursor"),
+            notes=notes,
+            spent_nullifiers=result.get("spentNullifiers", []) or [],
+            spent_nullifier_count=result.get("spentNullifierCount", 0),
+            reconstruction=result.get("reconstruction", ""),
+            signature_verified=result.get("signatureVerified", False),
+        )
+
+    def _parse_trading_result(self, result: Dict) -> ViewTradingResult:
+        aggregates = [
+            ViewMarketAggregate(
+                market_id=agg.get("marketId", 0),
+                mark_price=agg.get("markPrice", "0x0"),
+                long_open_interest=agg.get("longOpenInterest", "0x0"),
+                short_open_interest=agg.get("shortOpenInterest", "0x0"),
+                last_clearing_price=agg.get("lastClearingPrice", "0x0"),
+                last_volume=agg.get("lastVolume", "0x0"),
+                liquidatable_count=agg.get("liquidatableCount", 0),
+            )
+            for agg in (result.get("marketAggregates", {}) or {}).get("markets", [])
+        ]
+        return ViewTradingResult(
+            grant_id=result.get("grantId", "0x"),
+            grantor_commitment=result.get("grantorCommitment", "0x"),
+            block_number=result.get("blockNumber", 0),
+            shielded_state_root=result.get("shieldedStateRoot", "0x"),
+            market_aggregates=aggregates,
+            reconstruction=result.get("reconstruction", ""),
+            signature_verified=result.get("signatureVerified", False),
+        )
+
+    def view_positions(self, grant_id_hex: str) -> ViewTradingResult:
+        """mersennet_viewPositions - grant-gated (``positions:read``). Returns
+        public market context + grant binding; pair with
+        ``reconstruct_positions`` over the wallet's local fill records."""
+        result = self._request("mersennet_viewPositions", [{"grantIdHex": grant_id_hex}])
+        return self._parse_trading_result(result)
+
+    def view_orders(self, grant_id_hex: str) -> ViewTradingResult:
+        """mersennet_viewOrders - grant-gated (``orders:read``). Returns public
+        market context + grant binding; pair with ``reconstruct_open_orders``
+        over the wallet's local order records."""
+        result = self._request("mersennet_viewOrders", [{"grantIdHex": grant_id_hex}])
+        return self._parse_trading_result(result)
+
+    def view_grant_status(self, grant_id_hex: str) -> ViewGrantStatus:
+        """mersennet_viewGrantStatus - lifecycle/status of a viewing grant."""
+        result = self._request("mersennet_viewGrantStatus", [{"grantIdHex": grant_id_hex}])
+        return ViewGrantStatus(
+            exists=result.get("exists", False),
+            status=result.get("status", "unknown"),
+            active_now=result.get("activeNow", False),
+            signature_verified=result.get("signatureVerified", False),
+            revoked=result.get("revoked", False),
+            revoked_at_block=result.get("revokedAtBlock"),
+            grant_token=result.get("grantToken"),
+        )
+
+    def view_revoke_token(self, grant_id_hex: str) -> Dict[str, Any]:
+        """mersennet_viewRevokeToken - revoke a previously-issued viewing grant."""
+        return self._request("mersennet_viewRevokeToken", [{"grantIdHex": grant_id_hex}])
+
+    def get_code_attestation(self, address: str) -> Optional[Dict[str, Any]]:
+        """mersennet_getCodeAttestation - on-chain code-publication attestation
+        for a contract, or None if unpublished."""
+        return self._request("mersennet_getCodeAttestation", [address])
 
     def gas_price(self) -> str:
         """Get current gas price (hex)."""
