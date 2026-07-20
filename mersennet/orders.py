@@ -18,16 +18,19 @@ class MersennetOrders:
     def __init__(self, provider: MersennetProvider):
         self.provider = provider
 
-    def add_market(
-        self, base: str, quote: str, lot: str, tick: str
-    ) -> int:
-        """Add a new market (admin). Returns market ID."""
-        result = self.provider._request("mersennet_orders_addMarket", [
-            f"{base}-{quote}",
-            _to_hex_amount(tick),
-            _to_hex_amount(lot),
-        ])
-        return int(result, 16) if isinstance(result, str) else int(result)
+    # Markets are seeded deterministically from the node's genesis config; the
+    # unsigned addMarket RPC was removed (it only mutated one node's state).
+
+    _SIGNED_ORDER_MSG = (
+        "Orders are now signed transactions to the CLOB precompile "
+        "(0x0000000000000000000000000000000000000100). The unsigned "
+        "owner-field RPC was removed for security (it let anyone trade as "
+        "anyone). Build a placeOrder/cancelOrder/depositCollateral/"
+        "withdrawCollateral call, sign it (e.g. with eth-account), and submit "
+        "via provider.send_raw_transaction(). Native signing helpers for the "
+        "Python SDK are a tracked follow-up; the TypeScript SDK "
+        "(MersennetOrders + TxSigner) is the reference implementation."
+    )
 
     def place_order(
         self,
@@ -38,25 +41,12 @@ class MersennetOrders:
         tif: str = "gtc",
         owner: Optional[str] = None,
     ) -> dict:
-        """Place an order. owner required for RPC (unlocked account)."""
-        if owner is None:
-            raise ValueError("owner required for place_order")
-        params = [{
-            "owner": owner,
-            "market_id": market,
-            "side": side,
-            "price": _to_hex_amount(price),
-            "size": _to_hex_amount(amount),
-            "tif": tif,
-        }]
-        return self.provider._request("mersennet_orders_submitOrder", params)
+        """Deprecated: use a signed tx to the precompile (see message)."""
+        raise NotImplementedError(self._SIGNED_ORDER_MSG)
 
     def cancel_order(self, order_id: int) -> bool:
-        """Cancel an order by ID."""
-        result = self.provider._request("mersennet_orders_cancelOrder", [
-            hex(order_id),
-        ])
-        return bool(result)
+        """Deprecated: use a signed cancelOrder tx to the precompile."""
+        raise NotImplementedError(self._SIGNED_ORDER_MSG)
 
     def get_order_book(self, market: int) -> OrderBook:
         """Get order book for a market."""
