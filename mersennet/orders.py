@@ -109,6 +109,26 @@ class MersennetOrders:
         margin bps, wei per collateral unit, insurance fund, bad debt, market price scales."""
         return self.provider._request("mersennet_orders_getProtocol", []) or {}
 
+    def collateral_units_per_mrsn(self) -> int:
+        """Collateral units per MRSN in the current era: 10**18 before the settlement
+        switch (a unit was one wei) and 1 from it (a unit is one MRSN). Read from
+        ``get_protocol()['weiPerCollateralUnit']`` so callers never depend on the height."""
+        raw = self.get_protocol().get("weiPerCollateralUnit", 1)
+        try:
+            wei = int(str(raw), 0)
+        except (TypeError, ValueError):
+            wei = 1
+        return 10**18 // (wei if wei > 0 else 1)
+
+    def to_collateral_units(self, mrsn) -> int:
+        """Human MRSN amount ("10.5", 10, Decimal) -> integer collateral units for the
+        current era (floor). Pass the result to ``depositCollateral``/``withdrawCollateral``."""
+        from decimal import Decimal
+        wei = int(Decimal(str(mrsn)) * Decimal(10**18))
+        if wei <= 0:
+            raise ValueError(f"invalid MRSN amount: {mrsn}")
+        return wei // (10**18 // self.collateral_units_per_mrsn())
+
     def get_markets(self) -> List[dict]:
         """Listed markets with tick/lot sizes and ``priceScale``
         (on-chain price = human price × priceScale; 1 = integer prices)."""
