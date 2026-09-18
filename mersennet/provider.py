@@ -9,6 +9,13 @@ try:
 except ImportError:
     _USE_REQUESTS = False
 
+# Identify the client. Edge filters treat library defaults such as
+# "Python-urllib/3.x" as suspicious; a named agent is also easier to support.
+_HEADERS = {
+    "Content-Type": "application/json",
+    "User-Agent": "mersennet-sdk-python/0.7.0",
+}
+
 from .types import (
     Block,
     Log,
@@ -63,7 +70,7 @@ class MersennetProvider:
                 resp = requests.post(
                     self.url,
                     json=payload,
-                    headers={"Content-Type": "application/json"},
+                    headers=_HEADERS,
                     timeout=30,
                 )
                 resp.raise_for_status()
@@ -75,7 +82,7 @@ class MersennetProvider:
                 req = urllib.request.Request(
                     self.url,
                     data=body,
-                    headers={"Content-Type": "application/json"},
+                    headers=_HEADERS,
                     method="POST",
                 )
                 with urllib.request.urlopen(req, timeout=30) as resp:
