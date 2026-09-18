@@ -99,3 +99,48 @@ class MersennetOrders:
             if result and result != "0x":
                 return {"market": market, "raw": result}
         return {}
+
+    # ------------------------------------------------------------------
+    # Protocol parameters, markets, price scale, agents, liquidations
+    # ------------------------------------------------------------------
+
+    def get_protocol(self) -> dict:
+        """Every CLOB consensus switch and live parameter (`mersennet_orders_getProtocol`):
+        margin bps, wei per collateral unit, insurance fund, bad debt, market price scales."""
+        return self.provider._request("mersennet_orders_getProtocol", []) or {}
+
+    def get_markets(self) -> List[dict]:
+        """Listed markets with tick/lot sizes and ``priceScale``
+        (on-chain price = human price × priceScale; 1 = integer prices)."""
+        raw = self.provider._request("mersennet_orders_getMarkets", []) or []
+        out = []
+        for m in raw:
+            out.append({
+                "id": int(m.get("id", 0)),
+                "symbol": str(m.get("symbol", "")),
+                "tick_size": int(str(m.get("tickSize", "0x1")), 16) if str(m.get("tickSize", "0x1")).startswith("0x") else int(m.get("tickSize", 1)),
+                "lot_size": int(str(m.get("lotSize", "0x1")), 16) if str(m.get("lotSize", "0x1")).startswith("0x") else int(m.get("lotSize", 1)),
+                "last_price": int(str(m.get("lastPrice", "0x0")), 16) if str(m.get("lastPrice", "0x0")).startswith("0x") else int(m.get("lastPrice", 0)),
+                "price_scale": int(m.get("priceScale", 1) or 1),
+                "status": str(m.get("status", "active")),
+            })
+        return out
+
+    @staticmethod
+    def to_chain_price(human: float, price_scale: int) -> int:
+        """Human price → on-chain price (rounded to the nearest unit)."""
+        return int(round(float(human) * (price_scale or 1)))
+
+    @staticmethod
+    def to_human_price(chain: int, price_scale: int) -> float:
+        """On-chain price → human price."""
+        return int(chain) / (price_scale or 1)
+
+    def get_agents(self, owner: str) -> dict:
+        """Agent keys granted by ``owner`` and whether delegation is active (`mersennet_orders_getAgents`)."""
+        return self.provider._request("mersennet_orders_getAgents", [owner]) or {}
+
+    def get_liquidatable(self) -> List[str]:
+        """Accounts below maintenance margin at the head (keeper feed; empty before the settlement switch)."""
+        r = self.provider._request("mersennet_orders_getLiquidatable", []) or {}
+        return list(r.get("accounts", []))
