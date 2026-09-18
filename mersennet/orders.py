@@ -18,16 +18,19 @@ class MersennetOrders:
     def __init__(self, provider: MersennetProvider):
         self.provider = provider
 
-    def add_market(
-        self, base: str, quote: str, lot: str, tick: str
-    ) -> int:
-        """Add a new market (admin). Returns market ID."""
-        result = self.provider._request("mersennet_orders_addMarket", [
-            f"{base}-{quote}",
-            _to_hex_amount(tick),
-            _to_hex_amount(lot),
-        ])
-        return int(result, 16) if isinstance(result, str) else int(result)
+    # Markets are seeded deterministically from the node's genesis config; the
+    # unsigned addMarket RPC was removed (it only mutated one node's state).
+
+    _SIGNED_ORDER_MSG = (
+        "Orders are now signed transactions to the CLOB precompile "
+        "(0x0000000000000000000000000000000000000100). The unsigned "
+        "owner-field RPC was removed for security (it let anyone trade as "
+        "anyone). Build a placeOrder/cancelOrder/depositCollateral/"
+        "withdrawCollateral call, sign it (e.g. with eth-account), and submit "
+        "via provider.send_raw_transaction(). Native signing helpers for the "
+        "Python SDK are a tracked follow-up; the TypeScript SDK "
+        "(MersennetOrders + TxSigner) is the reference implementation."
+    )
 
     def place_order(
         self,
@@ -38,25 +41,12 @@ class MersennetOrders:
         tif: str = "gtc",
         owner: Optional[str] = None,
     ) -> dict:
-        """Place an order. owner required for RPC (unlocked account)."""
-        if owner is None:
-            raise ValueError("owner required for place_order")
-        params = [{
-            "owner": owner,
-            "market_id": market,
-            "side": side,
-            "price": _to_hex_amount(price),
-            "size": _to_hex_amount(amount),
-            "tif": tif,
-        }]
-        return self.provider._request("mersennet_orders_submitOrder", params)
+        """Deprecated: use a signed tx to the precompile (see message)."""
+        raise NotImplementedError(self._SIGNED_ORDER_MSG)
 
     def cancel_order(self, order_id: int) -> bool:
-        """Cancel an order by ID."""
-        result = self.provider._request("mersennet_orders_cancelOrder", [
-            hex(order_id),
-        ])
-        return bool(result)
+        """Deprecated: use a signed cancelOrder tx to the precompile."""
+        raise NotImplementedError(self._SIGNED_ORDER_MSG)
 
     def get_order_book(self, market: int) -> OrderBook:
         """Get order book for a market."""
@@ -109,3 +99,48 @@ class MersennetOrders:
             if result and result != "0x":
                 return {"market": market, "raw": result}
         return {}
+
+    # ------------------------------------------------------------------
+    # Protocol parameters, markets, price scale, agents, liquidations
+    # ------------------------------------------------------------------
+
+    def get_protocol(self) -> dict:
+        """Every CLOB consensus switch and live parameter (`mersennet_orders_getProtocol`):
+        margin bps, wei per collateral unit, insurance fund, bad debt, market price scales."""
+        return self.provider._request("mersennet_orders_getProtocol", []) or {}
+
+    def get_markets(self) -> List[dict]:
+        """Listed markets with tick/lot sizes and ``priceScale``
+        (on-chain price = human price × priceScale; 1 = integer prices)."""
+        raw = self.provider._request("mersennet_orders_getMarkets", []) or []
+        out = []
+        for m in raw:
+            out.append({
+                "id": int(m.get("id", 0)),
+                "symbol": str(m.get("symbol", "")),
+                "tick_size": int(str(m.get("tickSize", "0x1")), 16) if str(m.get("tickSize", "0x1")).startswith("0x") else int(m.get("tickSize", 1)),
+                "lot_size": int(str(m.get("lotSize", "0x1")), 16) if str(m.get("lotSize", "0x1")).startswith("0x") else int(m.get("lotSize", 1)),
+                "last_price": int(str(m.get("lastPrice", "0x0")), 16) if str(m.get("lastPrice", "0x0")).startswith("0x") else int(m.get("lastPrice", 0)),
+                "price_scale": int(m.get("priceScale", 1) or 1),
+                "status": str(m.get("status", "active")),
+            })
+        return out
+
+    @staticmethod
+    def to_chain_price(human: float, price_scale: int) -> int:
+        """Human price → on-chain price (rounded to the nearest unit)."""
+        return int(round(float(human) * (price_scale or 1)))
+
+    @staticmethod
+    def to_human_price(chain: int, price_scale: int) -> float:
+        """On-chain price → human price."""
+        return int(chain) / (price_scale or 1)
+
+    def get_agents(self, owner: str) -> dict:
+        """Agent keys granted by ``owner`` and whether delegation is active (`mersennet_orders_getAgents`)."""
+        return self.provider._request("mersennet_orders_getAgents", [owner]) or {}
+
+    def get_liquidatable(self) -> List[str]:
+        """Accounts below maintenance margin at the head (keeper feed; empty before the settlement switch)."""
+        r = self.provider._request("mersennet_orders_getLiquidatable", []) or {}
+        return list(r.get("accounts", []))

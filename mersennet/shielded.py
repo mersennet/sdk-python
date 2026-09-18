@@ -205,6 +205,64 @@ def make_mock_note_decryptor(view_secret_hex: str) -> Callable[[GrantedNoteDecry
     return decrypt
 
 
+@dataclass
+class ViewingKey:
+    """A shielded viewing/spend keypair. Field names mirror the TS SDK."""
+
+    spend_pk: str
+    spend_sk: str
+    view_pk: str
+    view_sk: str
+
+
+def _simple_hash(value: str) -> str:
+    """Deterministic placeholder hash matching the TS ``simpleHash`` (a rolling
+    polynomial over UTF-8 code points mod 2^256). Used only so key derivation
+    is reproducible for tests; production uses hardened BIP-32/keccak."""
+    h = 0
+    mask = (1 << 256) - 1
+    for ch in value:
+        h = ((h << 5) - h + ord(ch)) & mask
+    return "0x" + format(h, "064x")[:64]
+
+
+def viewing_key_from_seed(seed: str) -> ViewingKey:
+    """Derive a viewing key from a seed (parity with ``ViewingKeyHelpers.fromSeed``).
+
+    Deterministic placeholder derivation; the production wallet uses a hardened
+    BIP-32 path. Do not use for real funds.
+    """
+    h = _simple_hash(seed + ":spend")
+    v = _simple_hash(seed + ":view")
+    return ViewingKey(
+        spend_sk="0x" + h[2:],
+        spend_pk="0x" + _simple_hash(h + ":pub")[2:],
+        view_sk="0x" + v[2:],
+        view_pk="0x" + _simple_hash(v + ":pub")[2:],
+    )
+
+
+def delegate_view_token(vk: ViewingKey, scope: List[str], expiry: int) -> str:
+    """Encode a one-shot viewing token an auditor/counterparty can submit for
+    selective disclosure. Base64-encoded JSON, parity with the TS helper."""
+    import base64
+    import json as _json
+
+    payload = _json.dumps({"vk": vk.view_sk, "scope": scope, "expiry": expiry})
+    return base64.b64encode(payload.encode("utf-8")).decode("ascii")
+
+
+def create_owner_viewing_material(viewing_key: ViewingKey, grant_id_hex: str) -> GrantedViewingMaterial:
+    """Build the viewing material a wallet uses to scan its OWN notes
+    (Workstream F2). The decryptor is keyed by the wallet's secret viewing
+    scalar; the scan is filtered to notes addressed to its public viewing key."""
+    return GrantedViewingMaterial(
+        grant_id_hex=grant_id_hex,
+        recipient_public_key=viewing_key.view_pk,
+        decrypt_note_ciphertext=make_mock_note_decryptor(viewing_key.view_sk),
+    )
+
+
 def _decode_hex_bytes(value: str) -> bytes:
     trimmed = value[2:] if value.startswith("0x") else value
     if len(trimmed) % 2 != 0:

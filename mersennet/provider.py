@@ -9,7 +9,18 @@ try:
 except ImportError:
     _USE_REQUESTS = False
 
-from .types import Block, ViewNotesEntry, ViewNotesResult
+from .types import (
+    Block,
+    Log,
+    Receipt,
+    Transaction,
+    ViewBalancesResult,
+    ViewGrantStatus,
+    ViewMarketAggregate,
+    ViewNotesEntry,
+    ViewNotesResult,
+    ViewTradingResult,
+)
 
 
 class MersennetError(Exception):
@@ -96,24 +107,102 @@ class MersennetProvider:
         return self._parse_block(result)
 
     def _parse_block(self, obj: Dict) -> Block:
+        raw_txs = obj.get("transactions", []) or []
+        transactions = [
+            self._parse_tx(tx) if isinstance(tx, dict) else tx
+            for tx in raw_txs
+        ]
         return Block(
             number=obj.get("number", "0x0"),
             hash=obj.get("hash", "0x0"),
-            gas_limit=obj.get("gas_limit", "0x0"),
-            gas_used=obj.get("gas_used", "0x0"),
-            base_fee=obj.get("base_fee", "0x0"),
-            state_root=obj.get("state_root", "0x0"),
-            transactions=obj.get("transactions", []),
-            domain_events=obj.get("domain_events"),
+            parent_hash=obj.get("parentHash", "0x0"),
+            nonce=obj.get("nonce", "0x0"),
+            sha3_uncles=obj.get("sha3Uncles", "0x0"),
+            logs_bloom=obj.get("logsBloom", "0x0"),
+            transactions_root=obj.get("transactionsRoot", "0x0"),
+            state_root=obj.get("stateRoot", "0x0"),
+            receipts_root=obj.get("receiptsRoot", "0x0"),
+            miner=obj.get("miner", "0x0"),
+            proposer=obj.get("proposer", "0x0"),
+            difficulty=obj.get("difficulty", "0x0"),
+            total_difficulty=obj.get("totalDifficulty", "0x0"),
+            extra_data=obj.get("extraData", "0x"),
+            size=obj.get("size", "0x0"),
+            gas_limit=obj.get("gasLimit", "0x0"),
+            gas_used=obj.get("gasUsed", "0x0"),
+            base_fee=obj.get("baseFeePerGas", "0x0"),
+            timestamp=obj.get("timestamp", "0x0"),
+            transactions=transactions,
+            uncles=obj.get("uncles", []) or [],
+            mix_hash=obj.get("mixHash", "0x0"),
+            domain_events=obj.get("domainEvents"),
         )
 
-    def get_transaction(self, hash: str) -> Optional[Dict]:
-        """Get transaction by hash."""
-        return self._request("eth_getTransactionByHash", [hash])
+    def _parse_tx(self, obj: Dict) -> Transaction:
+        return Transaction(
+            hash=obj.get("hash", "0x0"),
+            from_=obj.get("from", "0x0"),
+            to=obj.get("to"),
+            value=obj.get("value", "0x0"),
+            nonce=obj.get("nonce", "0x0"),
+            gas=obj.get("gas", "0x0"),
+            gas_price=obj.get("gasPrice", "0x0"),
+            input=obj.get("input", "0x"),
+            block_hash=obj.get("blockHash"),
+            block_number=obj.get("blockNumber"),
+            transaction_index=obj.get("transactionIndex"),
+            type=obj.get("type"),
+            v=obj.get("v"),
+            r=obj.get("r"),
+            s=obj.get("s"),
+            chain_id=obj.get("chainId"),
+        )
 
-    def get_transaction_receipt(self, hash: str) -> Optional[Dict]:
+    def _parse_log(self, obj: Dict) -> Log:
+        return Log(
+            address=obj.get("address", "0x0"),
+            topics=obj.get("topics", []) or [],
+            data=obj.get("data", "0x"),
+            block_number=obj.get("blockNumber", "0x0"),
+            block_hash=obj.get("blockHash", "0x0"),
+            transaction_hash=obj.get("transactionHash", "0x0"),
+            transaction_index=obj.get("transactionIndex", "0x0"),
+            log_index=obj.get("logIndex", "0x0"),
+            removed=obj.get("removed", False),
+        )
+
+    def _parse_receipt(self, obj: Dict) -> Receipt:
+        logs = [self._parse_log(log) for log in (obj.get("logs", []) or [])]
+        return Receipt(
+            transaction_hash=obj.get("transactionHash", "0x0"),
+            block_hash=obj.get("blockHash", "0x0"),
+            block_number=obj.get("blockNumber", "0x0"),
+            transaction_index=obj.get("transactionIndex", "0x0"),
+            from_=obj.get("from", "0x0"),
+            to=obj.get("to"),
+            gas_used=obj.get("gasUsed", "0x0"),
+            cumulative_gas_used=obj.get("cumulativeGasUsed", "0x0"),
+            effective_gas_price=obj.get("effectiveGasPrice", "0x0"),
+            status=obj.get("status", "0x0"),
+            contract_address=obj.get("contractAddress"),
+            logs_bloom=obj.get("logsBloom", "0x0"),
+            type=obj.get("type"),
+            logs=logs,
+        )
+
+    def get_transaction(self, hash: str) -> Optional[Transaction]:
+        """Get transaction by hash."""
+        result = self._request("eth_getTransactionByHash", [hash])
+        if result is None:
+            return None
+        return self._parse_tx(result)
+
+    def get_transaction_receipt(self, hash: str) -> Optional[Receipt]:
         """Get transaction receipt by hash."""
-        return self._request("eth_getTransactionReceipt", [hash])
+        result = self._request("eth_getTransactionReceipt", [hash])
+        if result is None:
+            return None
+        return self._parse_receipt(result)
 
     def get_balance(self, address: str) -> str:
         """Get balance of address (hex string)."""
@@ -175,6 +264,104 @@ class MersennetProvider:
             notes=notes,
             signature_verified=result.get("signatureVerified", False),
         )
+
+    def view_balances(
+        self,
+        grant_id_hex: str,
+        limit: Optional[int] = None,
+        cursor_hex: Optional[str] = None,
+    ) -> ViewBalancesResult:
+        """mersennet_viewBalances - grant-gated (``balances:read``) page.
+
+        Returns the encrypted-note page plus the spent-nullifier set; pair with
+        ``reconstruct_portfolio`` to derive spendable balances client-side.
+        """
+        request: Dict[str, Any] = {"grantIdHex": grant_id_hex}
+        if limit is not None:
+            request["limit"] = limit
+        if cursor_hex is not None:
+            request["cursorHex"] = cursor_hex
+        result = self._request("mersennet_viewBalances", [request])
+        notes = [
+            ViewNotesEntry(
+                note_commitment=entry.get("noteCommitment", "0x"),
+                encrypted_note=entry.get("encryptedNote", "0x"),
+            )
+            for entry in result.get("notes", [])
+        ]
+        return ViewBalancesResult(
+            grant_id=result.get("grantId", "0x"),
+            grantor_commitment=result.get("grantorCommitment", "0x"),
+            block_number=result.get("blockNumber", 0),
+            shielded_state_root=result.get("shieldedStateRoot", "0x"),
+            total_encrypted_note_count=result.get("totalEncryptedNoteCount", 0),
+            returned_encrypted_note_count=result.get("returnedEncryptedNoteCount", 0),
+            next_cursor=result.get("nextCursor"),
+            notes=notes,
+            spent_nullifiers=result.get("spentNullifiers", []) or [],
+            spent_nullifier_count=result.get("spentNullifierCount", 0),
+            reconstruction=result.get("reconstruction", ""),
+            signature_verified=result.get("signatureVerified", False),
+        )
+
+    def _parse_trading_result(self, result: Dict) -> ViewTradingResult:
+        aggregates = [
+            ViewMarketAggregate(
+                market_id=agg.get("marketId", 0),
+                mark_price=agg.get("markPrice", "0x0"),
+                long_open_interest=agg.get("longOpenInterest", "0x0"),
+                short_open_interest=agg.get("shortOpenInterest", "0x0"),
+                last_clearing_price=agg.get("lastClearingPrice", "0x0"),
+                last_volume=agg.get("lastVolume", "0x0"),
+                liquidatable_count=agg.get("liquidatableCount", 0),
+            )
+            for agg in (result.get("marketAggregates", {}) or {}).get("markets", [])
+        ]
+        return ViewTradingResult(
+            grant_id=result.get("grantId", "0x"),
+            grantor_commitment=result.get("grantorCommitment", "0x"),
+            block_number=result.get("blockNumber", 0),
+            shielded_state_root=result.get("shieldedStateRoot", "0x"),
+            market_aggregates=aggregates,
+            reconstruction=result.get("reconstruction", ""),
+            signature_verified=result.get("signatureVerified", False),
+        )
+
+    def view_positions(self, grant_id_hex: str) -> ViewTradingResult:
+        """mersennet_viewPositions - grant-gated (``positions:read``). Returns
+        public market context + grant binding; pair with
+        ``reconstruct_positions`` over the wallet's local fill records."""
+        result = self._request("mersennet_viewPositions", [{"grantIdHex": grant_id_hex}])
+        return self._parse_trading_result(result)
+
+    def view_orders(self, grant_id_hex: str) -> ViewTradingResult:
+        """mersennet_viewOrders - grant-gated (``orders:read``). Returns public
+        market context + grant binding; pair with ``reconstruct_open_orders``
+        over the wallet's local order records."""
+        result = self._request("mersennet_viewOrders", [{"grantIdHex": grant_id_hex}])
+        return self._parse_trading_result(result)
+
+    def view_grant_status(self, grant_id_hex: str) -> ViewGrantStatus:
+        """mersennet_viewGrantStatus - lifecycle/status of a viewing grant."""
+        result = self._request("mersennet_viewGrantStatus", [{"grantIdHex": grant_id_hex}])
+        return ViewGrantStatus(
+            exists=result.get("exists", False),
+            status=result.get("status", "unknown"),
+            active_now=result.get("activeNow", False),
+            signature_verified=result.get("signatureVerified", False),
+            revoked=result.get("revoked", False),
+            revoked_at_block=result.get("revokedAtBlock"),
+            grant_token=result.get("grantToken"),
+        )
+
+    def view_revoke_token(self, grant_id_hex: str) -> Dict[str, Any]:
+        """mersennet_viewRevokeToken - revoke a previously-issued viewing grant."""
+        return self._request("mersennet_viewRevokeToken", [{"grantIdHex": grant_id_hex}])
+
+    def get_code_attestation(self, address: str) -> Optional[Dict[str, Any]]:
+        """mersennet_getCodeAttestation - on-chain code-publication attestation
+        for a contract, or None if unpublished."""
+        return self._request("mersennet_getCodeAttestation", [address])
 
     def gas_price(self) -> str:
         """Get current gas price (hex)."""
