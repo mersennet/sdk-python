@@ -1,11 +1,18 @@
-# Mersennet Python SDK
+<p align="center"><a href="https://mersennet.com"><img src="https://raw.githubusercontent.com/mersennet/.github/main/profile/mark.svg" width="72" alt="Mersennet"></a></p>
+<h1 align="center">Mersennet Python SDK</h1>
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-7dff9b?style=flat-square" alt="MIT license"></a>
+  <a href="https://github.com/mersennet/sdk-python/actions/workflows/ci.yml"><img src="https://github.com/mersennet/sdk-python/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://docs.mersennet.com/developers/sdks/python/"><img src="https://img.shields.io/badge/docs-mersennet-1c1c1c?style=flat-square" alt="Docs"></a>
+  <a href="https://t.me/Mersennet"><img src="https://img.shields.io/badge/telegram-%40Mersennet-26A5E4?style=flat-square" alt="Telegram"></a>
+</p>
 
 Python client for Mersennet - JSON-RPC, CLOB (order book), and WebSocket subscriptions.
 
 ## Installation
 
 ```bash
-pip install mersennet-sdk
+pip install git+https://github.com/mersennet/sdk-python.git   # PyPI publication pending
 ```
 
 Or from source:
@@ -129,6 +136,14 @@ except MersennetError as e:
     print(f"Error {e.code}: {e}")
 ```
 
-## License
+---
 
-MIT — see [LICENSE](LICENSE). Copyright (c) 2026 Mersennet Foundation. Security reports: security@mersennet.com ([SECURITY.md](SECURITY.md)).
+<p align="center">
+  Part of the <a href="https://github.com/mersennet">Mersennet</a> ecosystem —
+  <a href="https://trade.mersennet.com">trade</a> ·
+  <a href="https://explorer.mersennet.com">explorer</a> ·
+  <a href="https://docs.mersennet.com">docs</a> ·
+  <a href="https://mersennet.com/downloads/">run a node</a> ·
+  <a href="https://t.me/Mersennet">Telegram</a><br>
+  <sub>© 2026 Mersennet Foundation · MIT License · security@mersennet.com</sub>
+</p>
