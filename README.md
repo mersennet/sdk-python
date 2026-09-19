@@ -128,3 +128,7 @@ try:
 except MersennetError as e:
     print(f"Error {e.code}: {e}")
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE). Copyright (c) 2026 Mersennet Foundation. Security reports: security@mersennet.com ([SECURITY.md](SECURITY.md)).

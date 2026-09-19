@@ -5,6 +5,7 @@ from setuptools import setup, find_packages
 setup(
     name="mersennet-sdk",
     version="0.7.0",
+    license="MIT",
     description="Python SDK for Mersennet - JSON-RPC, CLOB, and WebSocket client",
     long_description=open("README.md").read() if __import__("os").path.exists("README.md") else "",
     long_description_content_type="text/markdown",
