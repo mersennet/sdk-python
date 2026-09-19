@@ -2,6 +2,9 @@ name: CI
 on:
   push: { branches: [develop, main] }
   pull_request:
+permissions:
+  contents: read
+
 jobs:
   test:
     name: pytest (python ${{ matrix.python }})
