@@ -10,7 +10,7 @@ setup(
     long_description=open("README.md").read() if __import__("os").path.exists("README.md") else "",
     long_description_content_type="text/markdown",
     packages=find_packages(),
-    python_requires=">=3.9",
+    python_requires=">=3.10",
     install_requires=[
         "requests>=2.28.0",
         "websocket-client>=1.5.0",
