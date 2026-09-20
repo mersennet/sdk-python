@@ -12,7 +12,7 @@ Python client for Mersennet - JSON-RPC, CLOB (order book), and WebSocket subscri
 ## Installation
 
 ```bash
-pip install "git+https://github.com/mersennet/sdk-python.git@v0.1.0"   # PyPI publication pending
+pip install "git+https://github.com/mersennet/sdk-python.git@v0.1.1"   # PyPI publication pending
 ```
 
 Or from source:
