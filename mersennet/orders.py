@@ -88,17 +88,34 @@ class MersennetOrders:
         return trades
 
     def get_positions(self, address: str, market: Optional[int] = None) -> dict:
-        """Get positions for address. Uses precompile if available."""
-        if market is not None:
-            data = "0x" + "0" * 24 + hex(market)[2:].zfill(64)
+        """Position of `address` in `market` via the precompile's getPosition(uint64).
+
+        Returns ``{"market", "size", "entry_price", "raw"}``: ``size`` is the signed
+        int128 (negative = short) in integer lots, ``entry_price`` the chain price
+        (human price × the market's price scale — see ``to_human_price``).
+        Without ``market`` returns every market with a non-zero position.
+        """
+        def read(market_id: int) -> dict:
+            data = "0x0f85fc5a" + format(int(market_id), "064x")  # getPosition(uint64)
             result = self.provider.call({
                 "from": address,
                 "to": "0x0000000000000000000000000000000000000100",
                 "data": data,
             })
-            if result and result != "0x":
-                return {"market": market, "raw": result}
-        return {}
+            if not result or result == "0x" or len(result) < 130:
+                return {}
+            size = int.from_bytes(bytes.fromhex(result[2:66]), "big", signed=True)
+            entry_price = int(result[66:130], 16)
+            return {"market": int(market_id), "size": size, "entry_price": entry_price, "raw": result}
+
+        if market is not None:
+            return read(market)
+        out = {}
+        for m in self.get_markets():
+            pos = read(m["id"])
+            if pos and pos["size"] != 0:
+                out[m["id"]] = pos
+        return out
 
     # ------------------------------------------------------------------
     # Protocol parameters, markets, price scale, agents, liquidations
