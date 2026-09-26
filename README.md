@@ -1,6 +1,7 @@
 <p align="center"><a href="https://mersennet.com"><img src="https://raw.githubusercontent.com/mersennet/.github/main/profile/mark.svg" width="72" alt="Mersennet"></a></p>
 <h1 align="center">Mersennet Python SDK</h1>
 <p align="center">
+  <a href="https://pypi.org/project/mersennet-sdk/"><img src="https://img.shields.io/pypi/v/mersennet-sdk?style=flat-square&color=7dff9b&label=pypi" alt="PyPI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-7dff9b?style=flat-square" alt="MIT license"></a>
   <a href="https://github.com/mersennet/sdk-python/actions/workflows/ci.yml"><img src="https://github.com/mersennet/sdk-python/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
   <a href="https://docs.mersennet.com/developers/sdks/python/"><img src="https://img.shields.io/badge/docs-mersennet-1c1c1c?style=flat-square" alt="Docs"></a>
@@ -12,8 +13,13 @@ Python client for Mersennet - JSON-RPC, CLOB (order book), and WebSocket subscri
 ## Installation
 
 ```bash
-pip install "git+https://github.com/mersennet/sdk-python.git@v0.1.1"   # PyPI publication pending
+pip install mersennet-sdk
 ```
+
+Every GitHub release is uploaded to PyPI as [`mersennet-sdk`](https://pypi.org/project/mersennet-sdk/)
+through trusted publishing (OIDC from GitHub Actions — no upload token exists).
+A specific tag also installs straight from GitHub:
+`pip install "git+https://github.com/mersennet/sdk-python.git@v0.1.1"`.
 
 Or from source:
 
