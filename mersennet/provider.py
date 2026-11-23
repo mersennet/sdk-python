@@ -31,11 +31,17 @@ from .types import (
 
 
 class MersennetError(Exception):
-    """Mersennet RPC or SDK error."""
+    """Mersennet RPC or SDK error.
 
-    def __init__(self, message: str, code: Optional[int] = None):
+    ``code`` and ``data`` are the node's JSON-RPC ``error.code`` /
+    ``error.data``: a reverted ``eth_call`` / ``eth_estimateGas`` is code 3
+    with the revert bytes (hex) in ``data``, as on geth.
+    """
+
+    def __init__(self, message: str, code: Optional[int] = None, data: Any = None):
         super().__init__(message)
         self.code = code
+        self.data = data
 
 
 def _hex_to_number(hex_str: str) -> int:
@@ -95,6 +101,7 @@ class MersennetProvider:
             raise MersennetError(
                 err.get("message", "Unknown RPC error"),
                 code=err.get("code"),
+                data=err.get("data"),
             )
         return data.get("result")
 
@@ -226,7 +233,12 @@ class MersennetProvider:
         return self._request("eth_sendRawTransaction", [raw_tx])
 
     def call(self, tx_object: Dict) -> str:
-        """eth_call - simulate contract call."""
+        """eth_call - simulate contract call.
+
+        A reverted call raises :class:`MersennetError` with ``code == 3`` and
+        the revert bytes in ``data`` (nodes before the eth_call-errors release
+        returned the revert bytes as the result instead).
+        """
         result = self._request("eth_call", [tx_object])
         return result or "0x"
 
