@@ -1,6 +1,6 @@
 """Mersennet Python SDK - JSON-RPC, CLOB, shielded privacy, and WebSocket client."""
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 from .provider import MersennetProvider
 from .orders import MersennetOrders
