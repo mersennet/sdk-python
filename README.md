@@ -19,7 +19,7 @@ pip install mersennet-sdk
 Every GitHub release is uploaded to PyPI as [`mersennet-sdk`](https://pypi.org/project/mersennet-sdk/)
 through trusted publishing (OIDC from GitHub Actions — no upload token exists).
 A specific tag also installs straight from GitHub:
-`pip install "git+https://github.com/mersennet/sdk-python.git@v0.1.1"`.
+`pip install "git+https://github.com/mersennet/sdk-python.git@v0.1.2"`.
 
 Or from source:
 
